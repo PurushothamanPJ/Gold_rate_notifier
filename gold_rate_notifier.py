@@ -18,7 +18,7 @@ USER_AGENTS = [
 ]
 
 def fetch_gold_price():
-    url = "https://www.grtjewels.com"
+    url = "https://www.livechennai.com/gold_silverrate.asp"
 
     # Pick a random User-Agent
     user_agent = random.choice(USER_AGENTS)
@@ -36,17 +36,24 @@ def fetch_gold_price():
     driver.get(url)
 
     try:
-        # Wait up to 10 seconds for the gold price element to be visible
-        price_element = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "dropdown-basic-button1"))
+        # Wait for the gold table to load
+        table = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "table.today-gold-rate tbody tr"))
         )
-        gold_price = price_element.text.strip()
+
+        # Extract date, 22K gold price, and silver price
+        date_text = table.find_element(By.CSS_SELECTOR, "td.date-col").text.strip()
+        gold_price_22k = table.find_elements(By.TAG_NAME, "td")[1].text.strip()
+        silver_price = table.find_elements(By.TAG_NAME, "td")[2].text.strip()
+
+        message = f"📅 {date_text}\n💰 Gold (22K / 1g): {gold_price_22k}\n🥈 Silver (1g): {silver_price}"
+
     except Exception as e:
-        gold_price = f"⚠️ Could not find gold price on the page. Error: {e}"
+        message = f"⚠️ Could not fetch gold price. Error: {e}"
     finally:
         driver.quit()
 
-    return f"💰 Today’s Gold Price: {gold_price}"
+    return message
 
 def send_telegram_message(message: str):
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
