@@ -3,11 +3,10 @@ import random
 import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
 # List of common User-Agents
 USER_AGENTS = [
@@ -23,7 +22,7 @@ def fetch_gold_price():
     # Pick a random User-Agent
     user_agent = random.choice(USER_AGENTS)
 
-    # Configure Selenium Chrome options
+    # Configure Chrome/Chromium options
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
@@ -31,29 +30,24 @@ def fetch_gold_price():
     options.add_argument("--window-size=1920,1080")
     options.add_argument(f"user-agent={user_agent}")
 
-    # Initialize WebDriver
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # Use system-installed Chromium chromedriver
+    driver = webdriver.Chrome(service=Service("/usr/bin/chromedriver"), options=options)
     driver.get(url)
 
     try:
-        # Wait for the gold table to load
-        table = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "table.today-gold-rate tbody tr"))
+        # Wait up to 10s for the gold price table to load
+        price_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "table.today-gold-rate tbody tr td:nth-child(2)")
+            )
         )
-
-        # Extract date, 22K gold price, and silver price
-        date_text = table.find_element(By.CSS_SELECTOR, "td.date-col").text.strip()
-        gold_price_22k = table.find_elements(By.TAG_NAME, "td")[1].text.strip()
-        silver_price = table.find_elements(By.TAG_NAME, "td")[2].text.strip()
-
-        message = f"📅 {date_text}\n💰 Gold (22K / 1g): {gold_price_22k}\n🥈 Silver (1g): {silver_price}"
-
+        gold_price = price_element.text.strip()
     except Exception as e:
-        message = f"⚠️ Could not fetch gold price. Error: {e}"
+        gold_price = f"⚠️ Could not find gold price. Error: {e}"
     finally:
         driver.quit()
 
-    return message
+    return f"💰 Today’s Gold Price (22K per gram): {gold_price}"
 
 def send_telegram_message(message: str):
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
