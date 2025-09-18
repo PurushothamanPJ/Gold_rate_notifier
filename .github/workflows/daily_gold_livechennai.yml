@@ -1,0 +1,40 @@
+name: Daily Gold Tracker (LiveChennai)
+
+on:
+  schedule:
+    - cron: "30 4 * * *"   # Runs daily at 04:30 UTC (10 AM IST)
+  workflow_dispatch:        # Manual trigger for testing
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3. Install Chromium & Chromedriver
+      - name: Install Chromium & Chromedriver
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser chromium-chromedriver
+
+      # 4. Install Python dependencies
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 5. Run scraper
+      - name: Run Gold Price Scraper
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python gold_rate_notifier.py
