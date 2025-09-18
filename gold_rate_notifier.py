@@ -44,7 +44,7 @@ def fetch_gold_price():
         gold_price = price_element.text.strip()
     except Exception as e:
         gold_price = f"⚠️ Could not find gold price. Error: {e}"
-    finally:
+    finally: 
         driver.quit()
 
     return f"💰 Today’s Gold Price (22K per gram): {gold_price}"
