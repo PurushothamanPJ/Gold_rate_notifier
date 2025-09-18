@@ -1,7 +1,6 @@
 # .github/workflows/daily_gold.yml
 name: Daily Gold Tracker
 
-# Triggers
 on:
   schedule:
     - cron: "30 4 * * *"  # Runs daily at 04:30 UTC (10 AM IST)
@@ -22,23 +21,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3. Install system dependencies for Chrome
-      - name: Install Chrome & dependencies
+      # 3. Install Chromium (safer than Chrome)
+      - name: Install Chromium
         run: |
           sudo apt update
-          sudo apt install -y wget unzip xvfb libxi6 libgconf-2-4
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt --fix-broken install -y
+          sudo apt install -y chromium-browser chromium-chromedriver
 
       # 4. Install Python dependencies
       - name: Install Python Packages
         run: |
           python -m pip install --upgrade pip
-          pip install selenium webdriver-manager requests
+          pip install -r requirements.txt
 
       # 5. Run the scraper
       - name: Run Gold Price Scraper
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+        run: python gold_rate_notifier.py
