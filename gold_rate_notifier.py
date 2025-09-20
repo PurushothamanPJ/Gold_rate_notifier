@@ -1,69 +1,37 @@
 import os
-import random
 import csv
 from datetime import datetime
 import requests
 import matplotlib.pyplot as plt
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
 
 # --------------------------
 # Configuration
 # --------------------------
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.198 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/115.0.1901.188 Safari/537.36",
-]
-
 CSV_FILE = "gold_prices.csv"
 GRT_URL = "https://www.livechennai.com/gold_silverrate.asp"
-TIMEOUT_IN_SECONDS = 10
 
 # --------------------------
-# Scraper
+# Scraper (requests + BeautifulSoup)
 # --------------------------
 def fetch_gold_price():
-    user_agent = random.choice(USER_AGENTS)
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument(f"user-agent={user_agent}")
-
     try:
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        driver.set_page_load_timeout(TIMEOUT_IN_SECONDS)
-        driver.get(GRT_URL)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        }
+        response = requests.get(GRT_URL, headers=headers, timeout=15)
+        response.raise_for_status()
 
-        try:
-            table_element = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "table.today-gold-rate tbody tr"))
-            )
-            row = table_element
-            gold_price_text = row.find_elements(By.TAG_NAME, "td")[1].text
-            gold_price = gold_price_text.replace("₹", "").replace(",", "").split()[0]
+        soup = BeautifulSoup(response.text, "html.parser")
+        row = soup.select_one("table.today-gold-rate tbody tr")
+        gold_price_text = row.find_all("td")[1].text
+        gold_price = gold_price_text.replace("₹", "").replace(",", "").split()[0]
+        return float(gold_price)
 
-        except TimeoutException:
-            gold_price = None
-            print("⚠️ Could not find gold price table.")
-
-    except WebDriverException as e:
-        gold_price = None
-        print(f"⚠️ WebDriver error: {e}")
-
-    finally:
-        driver.quit()
-
-    return gold_price
+    except Exception as e:
+        print(f"⚠️ Could not fetch gold price: {e}")
+        return None
 
 # --------------------------
 # CSV Handling
