@@ -1,3 +1,5 @@
 selenium
+webdriver-manager
 requests
-python-dotenv
+matplotlib
+python-telegram-bot
