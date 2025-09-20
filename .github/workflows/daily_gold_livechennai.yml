@@ -28,7 +28,7 @@ jobs:
 
       # 4. Run scraper
       - name: Run Gold Price Scraper
-        env:
+        env: 
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python gold_rate_notifier.py
