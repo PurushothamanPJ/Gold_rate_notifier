@@ -47,16 +47,20 @@ def save_price(price):
         writer.writerow([datetime.now().strftime("%Y-%m-%d"), price])
 
 def load_history():
-    if not os.path.exists(CSV_FILE):
-        return [], []
+    if not os.path.exists(CSV_FILE) or os.path.getsize(CSV_FILE) == 0:
+        return [], []  # No data yet
 
     dates, prices = [], []
     with open(CSV_FILE) as f:
         reader = csv.DictReader(f)
+        # Check if headers exist
+        if reader.fieldnames is None or "date" not in reader.fieldnames or "price" not in reader.fieldnames:
+            return [], []  # Invalid or empty CSV
         for row in reader:
             dates.append(row["date"])
             prices.append(float(row["price"]))
     return dates, prices
+
 
 # --------------------------
 # Plotting
