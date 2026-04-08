@@ -17,24 +17,59 @@ def fetch_gold_price():
             page = browser.new_page()
 
             page.goto("https://www.grtjewels.com", wait_until="domcontentloaded")
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(5000)  # Increased from 3000 to 5000ms
 
-            gold_price_button = page.locator("text=GOLD 22 KT/1g").first
+            # Try multiple selectors in case the website changed
+            selectors = [
+                "text=GOLD 22 KT/1g",
+                "text=22 KT/1g",
+                "[data-price]",  # If they use data attributes
+                ".gold-price",   # If they use CSS classes
+            ]
 
-            if gold_price_button:
-                gold_price_text = gold_price_button.text_content()
-
+            gold_price_text = None
+            for selector in selectors:
                 try:
-                    price_part = gold_price_text.split('-')[1].strip()
-                    price_part = price_part.replace('₹', '').replace(',', '')
-                    browser.close()
-                    return float(price_part)
+                    element = page.locator(selector).first
+                    if element.is_visible(timeout=5000):
+                        gold_price_text = element.text_content()
+                        logging.info(f"Found element with selector '{selector}': '{gold_price_text}'")
+                        break
                 except Exception:
-                    logging.error(f"Parsing failed: {gold_price_text}")
+                    continue
+
+            if gold_price_text:
+                try:
+                    # More robust parsing - look for price patterns (avoid "22 KT")
+                    import re
+                    # Look for ₹ followed by numbers, or just numbers that are > 1000 (to avoid "22")
+                    price_match = re.search(r'₹?\s*([1-9]\d{3,}[\d,]*\.?\d*)', gold_price_text)
+                    if price_match:
+                        price_str = price_match.group(1).replace(',', '')
+                        price_float = float(price_str)
+                        # Additional check: gold prices should be reasonable (> 1000)
+                        if price_float > 1000:
+                            browser.close()
+                            return price_float
+                        else:
+                            logging.warning(f"Price {price_float} seems too low, might be incorrect")
+                            browser.close()
+                            return None
+                    else:
+                        logging.error(f"No valid price pattern found in: {gold_price_text}")
+                        browser.close()
+                        return None
+                except Exception as e:
+                    logging.error(f"Parsing failed: {gold_price_text} - Error: {e}")
                     browser.close()
                     return None
             else:
-                logging.error("Gold price element not found")
+                logging.error("Gold price element not found with any selector")
+                # Debug: Save page content for inspection
+                page_content = page.content()
+                with open("debug_page.html", "w") as f:
+                    f.write(page_content)
+                logging.info("Saved page content to debug_page.html for inspection")
                 browser.close()
                 return None
 
@@ -144,25 +179,37 @@ def send_telegram_image(image_path):
 
 
 if __name__ == "__main__":
+    print("Starting gold price scraper...")
     price = fetch_gold_price()
+    print(f"Fetched price: {price}")
 
     if price:
         save_price(price)
+        print(f"Saved price {price} to CSV")
 
         timestamps, prices = load_history()
         trend = get_trend(prices)
+        print(f"Trend: {trend}")
 
         message = f"💰 Gold Price: ₹{price}\n{trend}"
+        print(f"Message to send: {message}")
     else:
         message = "⚠️ Could not fetch today's gold price."
+        print("Failed to fetch price")
 
     send_telegram_message(message)
+    print("Attempted to send Telegram message")
 
     timestamps, prices = load_history()
+    print(f"Loaded {len(prices)} historical prices")
 
     if len(prices) >= 2:
         image_path = generate_plot(timestamps, prices)
         if image_path:
             send_telegram_image(image_path)
+            print(f"Generated and sent chart: {image_path}")
+        else:
+            print("Failed to generate chart")
     else:
         logging.info("Not enough data for trend graph yet.")
+        print("Not enough data for trend graph yet.")
